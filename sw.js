@@ -1,6 +1,6 @@
 // Offline cache for the app shell: network first (so updates arrive immediately), cache when offline.
-const CACHE = 'avto-v1';
-const SHELL = ['./', 'index.html', 'styles.css', 'config.js', 'icons.js', 'core.js', 'sync.js', 'app.js', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.webmanifest', 'vendor/swiper-bundle.min.js', 'vendor/swiper-bundle.min.css'];
+const CACHE = 'avto-v2';
+const SHELL = ['./', 'index.html', 'styles.css', 'config.js', 'icons.js', 'core.js', 'sync.js', 'photo.js', 'app.js', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.webmanifest', 'vendor/swiper-bundle.min.js', 'vendor/swiper-bundle.min.css'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

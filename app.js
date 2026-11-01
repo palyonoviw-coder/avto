@@ -311,6 +311,40 @@ function alerts(c) {
 
 /* ============================== Экраны ============================== */
 
+/** Большая карточка машины, как в банковских приложениях: фото сбоку, машины листаются свайпом. */
+function hero() {
+  const slide = (x) => `<div class="hero-slide" data-car="${x.id}" style="--c:${x.color || COLORS[1]}">
+    <div class="hero-name">${esc(x.name)}</div>
+    ${x.plate || x.year ? `<button class="hero-plate" data-act="edit-car" data-id="${x.id}">${esc(x.plate || x.year)} ${icon('chevron-right')}</button>` : ''}
+    <button class="hero-img ${x.photo ? '' : 'empty'}" data-act="car-photo" data-id="${x.id}" aria-label="Фото машины">
+      ${x.photo ? `<img src="${x.photo}" alt="${esc(x.name)}">` : `${icon('car')}<span>${icon('plus')} Добавить фото</span>`}</button></div>`;
+  const cars = db.cars;
+  return `<div class="hero">
+    <div class="car-strip" data-active="${cars.findIndex((x) => x.id === db.settings.activeCar)}">${cars.map(slide).join('')}
+      <div class="hero-slide add" style="--c:#6e6e69"><button class="hero-img empty" data-act="new-car">${icon('plus')}<span>Добавить машину</span></button></div></div>
+    <div class="hero-dots">${cars.map((x) => `<i class="${x.id === db.settings.activeCar ? 'on' : ''}"></i>`).join('')}<i class="plus">+</i></div>
+  </div>`;
+}
+
+/** После отрисовки — показать в ленте машин активную и следить за свайпом. */
+function syncHero(root = document) {
+  root.querySelectorAll('.car-strip').forEach((strip) => {
+    const i = Number(strip.dataset.active) || 0;
+    strip.scrollLeft = i * strip.clientWidth;
+    if (strip.dataset.bound) return;
+    strip.dataset.bound = '1';
+    let t;
+    strip.addEventListener('scroll', () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const idx = Math.round(strip.scrollLeft / strip.clientWidth);
+        const id = db.cars[idx]?.id;
+        if (id && id !== db.settings.activeCar) { db.settings.activeCar = id; save(); render(); }
+      }, 140);
+    }, { passive: true });
+  });
+}
+
 function viewWelcome() {
   return topbar('Автожурнал', 'Расходы и ТО машины') + `<div class="content stack">
     <div class="card welcome">${badge('car', 'var(--primary)', 'lg')}
@@ -334,9 +368,8 @@ function viewOverview() {
   const recent = db.entries.filter((e) => e.carId === c.id).sort((a, b) => b.date.localeCompare(a.date) || (b.odo || 0) - (a.odo || 0)).slice(0, 5);
   return topbar('Обзор', `${MONTHS_FULL[new Date().getMonth()]} ${new Date().getFullYear()}`, `<span data-sync-slot="btn">${Sync.button()}</span>`) + `
   <div class="content stack">
+    ${hero()}
     <div class="card">
-      <div class="carhead">${badge('car', c.color || 'var(--primary)', 'lg')}<div class="mid"><div class="cname">${esc(c.name)}</div>
-        <div class="s">${esc([c.year, c.plate].filter(Boolean).join(' · '))}</div></div>${carPicker()}</div>
       <div class="kpis">
         <button class="kpi" data-act="odo">Пробег<b class="num">${esc(fmtKm(odo))}</b><span class="kpi-link">${icon('pencil')} обновить</span></button>
         <div class="kpi">Расход<b class="num">${cons ? `${nf.format(cons)} л/100` : '—'}</b></div>
@@ -507,6 +540,7 @@ function renderPage(v) {
   if (!v || !stale.has(v)) return;
   pageEl(v).innerHTML = VIEWS[v]();
   stale.delete(v);
+  syncHero(pageEl(v));
 }
 
 function render() {
@@ -516,12 +550,14 @@ function render() {
     const y = window.scrollY;
     $('#main').innerHTML = VIEWS[ui.view]();
     window.scrollTo(0, y);
+    syncHero();
     return;
   }
   const page = pageEl(ui.view);
   const y = page.scrollTop;
   page.innerHTML = VIEWS[ui.view]();
   page.scrollTop = y;
+  syncHero(page);
   for (const v of PAGES) if (v !== ui.view) stale.add(v);
   stale.delete(ui.view);
   const i = PAGES.indexOf(ui.view);
@@ -550,7 +586,7 @@ function setupPager() {
       resistanceRatio: 0.55,
       longSwipesRatio: 0.3,
       // Строки журнала смахиваются сами по себе (изменить/удалить), поэтому раздел с них не листается.
-      noSwipingSelector: 'input, select, textarea, .seg, .chips, .sw-row, .chart',
+      noSwipingSelector: 'input, select, textarea, .seg, .chips, .sw-row, .chart, .car-strip',
       on: {
         sliderFirstMove(sw) { renderPage(PAGES[sw.activeIndex - 1]); renderPage(PAGES[sw.activeIndex + 1]); },
         slideChange(sw) { ui.view = PAGES[sw.activeIndex]; renderPage(ui.view); markNav(); closeSwiped(); },
@@ -807,6 +843,82 @@ function odoModal() {
   });
 }
 
+/* ---------- Фото машины ---------- */
+
+function photoSection(v) {
+  return `<div class="f photo-field"><span class="lbl">Фото машины</span>
+    <div class="photo-box ${v.photo ? 'has' : ''}" style="--c:${v.color || COLORS[1]}"><img alt="" ${v.photo ? `src="${v.photo}"` : ''}>
+      <span class="photo-empty">${icon('car')}<span>Загрузите своё фото или попросите нейросеть нарисовать вид сбоку</span></span></div>
+    <input type="hidden" name="photo" value="${esc(v.photo || '')}">
+    <div class="photo-btns">
+      <button type="button" class="btn" data-ph="upload">${icon('upload')} Своё фото</button>
+      <button type="button" class="btn" data-ph="gen">${icon('sparkles')} Нарисовать</button>
+      <button type="button" class="btn ghost" data-ph="clear" ${v.photo ? '' : 'hidden'}>${icon('x')} Убрать</button>
+    </div>
+    <label class="switch small-switch"><input type="checkbox" name="cutbg" checked><span>Вырезать машину из фона нейросетью<br><span class="small muted">работает на телефоне, фото никуда не отправляется; в первый раз скачает ~55 МБ</span></span></label>
+    <div class="small photo-status" aria-live="polite"></div></div>`;
+}
+
+function bindPhoto(form) {
+  const box = $('.photo-box', form), img = $('img', box), status = $('.photo-status', form), clear = $('[data-ph="clear"]', form);
+  const set = (data) => {
+    form.elements.photo.value = data || '';
+    if (data) img.src = data; else img.removeAttribute('src');
+    box.classList.toggle('has', Boolean(data));
+    clear.hidden = !data;
+  };
+  const run = async (job) => {
+    if (form.dataset.busy) return;
+    form.dataset.busy = '1';
+    box.classList.add('busy');
+    form.querySelectorAll('[data-ph], button[type=submit]').forEach((b) => { b.disabled = true; });
+    try {
+      const r = await job((t) => { status.textContent = t; });
+      if (r) {
+        set(r.data);
+        status.textContent = r.error ? `${r.error}. Сохранил фото как есть.` : r.cut ? 'Готово. Не понравилось — нажмите ещё раз.' : 'Готово.';
+      }
+    } catch (e) {
+      status.textContent = e.message;
+    } finally {
+      delete form.dataset.busy;
+      box.classList.remove('busy');
+      form.querySelectorAll('[data-ph], button[type=submit]').forEach((b) => { b.disabled = false; });
+    }
+  };
+  form.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-ph]');
+    if (!b) return;
+    const removeBg = form.elements.cutbg.checked;
+    if (b.dataset.ph === 'clear') { set(null); status.textContent = ''; return; }
+    if (b.dataset.ph === 'upload') {
+      const file = await pickFile('image/*');
+      if (file) run((p) => Photo.fromFile(file, { removeBg, onProgress: p }));
+      return;
+    }
+    const name = form.elements.name?.value.trim() || form.dataset.carName;
+    if (!name) { fail(form, 'Сначала впишите марку и модель', 'name'); return; }
+    run((p) => Photo.generate({ name, year: form.elements.year?.value || form.dataset.carYear, color: form.elements.bodyColor?.value || form.dataset.carColor }, { onProgress: p }));
+  });
+}
+
+/** Только фото — из большой карточки на «Обзоре». */
+function photoModal(c) {
+  openModal(`Фото: ${c.name}`, `
+    <label class="f">Цвет кузова<input type="text" name="bodyColor" value="${esc(c.bodyColor || '')}" placeholder="например, красный — для картинки"></label>
+    ${photoSection(c)}`, {
+    onOpen(form) {
+      Object.assign(form.dataset, { carName: c.name, carYear: c.year || '' });
+      bindPhoto(form);
+    },
+    onSubmit(fd, form) {
+      if (form.dataset.busy) return fail(form, 'Подождите, фото ещё обрабатывается');
+      c.photo = fd.get('photo') || null;
+      c.bodyColor = String(fd.get('bodyColor') || '').trim();
+    },
+  });
+}
+
 function carModal(x = null) {
   const isNew = !x;
   const v = x || { name: '', year: '', plate: '', fuel: 'АИ-95', odo0: '', color: COLORS[1] };
@@ -821,17 +933,21 @@ function carModal(x = null) {
       <label class="f">Топливо<input type="text" name="fuel" value="${esc(v.fuel || '')}" list="fuel-list2"></label>
     </div>
     <datalist id="fuel-list2">${['АИ-92', 'АИ-95', 'АИ-98', 'ДТ', 'Газ'].map((f) => `<option value="${f}">`).join('')}</datalist>
-    <div class="f"><span class="lbl">Цвет</span><div class="swatches">${COLORS.map((col) => `<label class="swatch ${col === v.color ? 'on' : ''}" style="background:${col}"><input type="radio" name="color" value="${col}" ${col === v.color ? 'checked' : ''}></label>`).join('')}</div></div>
+    <label class="f">Цвет кузова<input type="text" name="bodyColor" value="${esc(v.bodyColor || '')}" placeholder="например, красный — для картинки"></label>
+    ${photoSection(v)}
+    <div class="f"><span class="lbl">Цвет значка и фона</span><div class="swatches">${COLORS.map((col) => `<label class="swatch ${col === v.color ? 'on' : ''}" style="background:${col}"><input type="radio" name="color" value="${col}" ${col === v.color ? 'checked' : ''}></label>`).join('')}</div></div>
     ${isNew ? '<label class="switch"><input type="checkbox" name="template" checked> Завести стандартный регламент ТО</label>' : ''}`, {
     onOpen(form) {
       form.addEventListener('change', (e) => { if (e.target.name === 'color') form.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('on', $('input', s).checked)); });
-      if (isNew) form.elements.name.focus();
+      bindPhoto(form);
+      if (isNew) form.elements.name.focus({ preventScroll: true });
     },
     onSubmit(fd, form) {
       const name = String(fd.get('name') || '').trim();
       if (!name) return fail(form, 'Введите название машины', 'name');
       const odo0 = readNum(form, 'odo0', 'Пробег', { int: true }); if (!odo0.ok) return false;
-      const out = { name, year: String(fd.get('year') || '').trim(), plate: String(fd.get('plate') || '').trim(), fuel: String(fd.get('fuel') || '').trim(), odo0: odo0.v ?? 0, color: fd.get('color') || COLORS[1] };
+      if (form.dataset.busy) return fail(form, 'Подождите, фото ещё обрабатывается');
+      const out = { name, year: String(fd.get('year') || '').trim(), plate: String(fd.get('plate') || '').trim(), fuel: String(fd.get('fuel') || '').trim(), odo0: odo0.v ?? 0, color: fd.get('color') || COLORS[1], bodyColor: String(fd.get('bodyColor') || '').trim(), photo: fd.get('photo') || null };
       if (x) { Object.assign(x, out); return; }
       const nc = { id: uid(), ...out };
       db.cars.push(nc);
@@ -1034,6 +1150,7 @@ document.addEventListener('click', (e) => {
     case 'edit-entry': { const x = db.entries.find((t) => t.id === id); if (x) entryModal(x); break; }
     case 'del-entry': if (deleteEntry(id)) { save(); render(); toast('Запись удалена'); } break;
     case 'odo': odoModal(); break;
+    case 'car-photo': { const x = db.cars.find((c) => c.id === id); if (x) photoModal(x); break; }
     case 'filter-cat': ui.cat = ui.cat === id ? '' : id; ui.logLimit = 0; go('log'); break;
     case 'more-log': ui.logLimit = (ui.logLimit || 60) + 60; render(); break;
     case 'service-tab': ui.serviceTab = el.dataset.t; render(); break;
