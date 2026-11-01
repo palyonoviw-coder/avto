@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Автожурнал — расходы и ТО машины</title>
+  <meta name="description" content="Журнал заправок, ТО и расходов на машину с напоминаниями о замене масла и синхронизацией через Google Диск.">
+  <meta name="theme-color" content="#f4f4f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="vendor/swiper-bundle.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <nav class="nav" aria-label="Разделы">
+      <div class="brand"><img src="icon-192.png" alt="" width="30" height="30"><span>Автожурнал</span></div>
+      <button class="btn primary nav-add" id="nav-add"><span data-icon="plus"></span>Новая запись</button>
+      <button class="nav-item" data-view="overview"><span class="ni" data-icon="layout-dashboard"></span><span>Обзор</span></button>
+      <button class="nav-item" data-view="log"><span class="ni" data-icon="list-ordered"></span><span>Журнал</span></button>
+      <button class="nav-item" data-view="service"><span class="ni" data-icon="wrench"></span><span>ТО</span></button>
+      <button class="nav-item" data-view="stats"><span class="ni" data-icon="chart-pie"></span><span>Отчёты</span></button>
+      <button class="nav-item" data-view="more"><span class="ni" data-icon="ellipsis"></span><span>Ещё</span></button>
+    </nav>
+    <main id="main" class="main" tabindex="-1"></main>
+    <button class="fab" id="fab" aria-label="Новая запись"></button>
+  </div>
+  <dialog id="modal" class="modal"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="config.js"></script>
+  <script src="icons.js"></script>
+  <script src="core.js"></script>
+  <script src="sync.js"></script>
+  <script src="vendor/swiper-bundle.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
