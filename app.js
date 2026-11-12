@@ -1147,3 +1147,5 @@ setInterval(() => { if (checkReminders() && !modal.open && ui.view === 'overview
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+// Просим браузер не удалять сохранённые файлы и данные, даже если приложение долго не открывали.
+navigator.storage?.persist?.().catch(() => {});
