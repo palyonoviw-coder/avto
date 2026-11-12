@@ -359,6 +359,8 @@ const Sync = (() => {
     }
     // Пока токен действует — подтягиваем изменения с других устройств.
     setInterval(() => { if (conf.connected && tokenValid()) syncNow(false); }, 120_000);
+    // Появился интернет — сразу отправляем то, что записали без него.
+    window.addEventListener('online', () => { if (conf.connected && tokenValid()) syncNow(false); });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && conf.connected && tokenValid()) syncNow(false);
     });
